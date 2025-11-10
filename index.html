@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CrackTheCode — Akira Terminal Ops</title>
+
+  <style>
+    :root{
+      --bg:#020403;
+      --bg2:#040a06;
+      --grid:#0a120c;
+      --txt:#7fff9f;
+      --txt-soft:#4fa86b;
+      --accent:#00ff99;
+      --accent2:#1affd5;
+      --danger:#ff4477;
+      --muted:#3f684c;
+      --border:#0e2415;
+      --font-term: "Fira Code", "JetBrains Mono", ui-monospace, Menlo, Monaco, monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{height:100%;}
+    body{
+      background:
+        radial-gradient(circle at top,#05140a 0,#010201 60%),
+        #000;
+      color:var(--txt);
+      font-family:var(--font-term);
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:10px;
+    }
+    .frame{
+      width:100%;
+      max-width:1440px;
+      height:calc(100vh - 20px);
+      background:
+        linear-gradient(to bottom,rgba(0,0,0,0.85),rgba(0,0,0,0.98)),
+        radial-gradient(circle at top,rgba(0,255,153,0.02),transparent);
+      border-radius:14px;
+      border:1px solid var(--border);
+      box-shadow:
+        0 24px 80px rgba(0,0,0,0.95),
+        0 0 24px rgba(0,255,153,0.06) inset;
+      display:grid;
+      grid-template-columns: 3fr 1.3fr;
+      gap:0;
+      overflow:hidden;
+      position:relative;
+    }
+    .term-wrap{
+      position:relative;
+      padding:14px 14px 10px;
+      display:flex;
+      flex-direction:column;
+      height:100%;
+      border-right:1px solid rgba(0,255,153,0.08);
+    }
+    .term-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:8px;
+      color:var(--txt-soft);
+      font-size:10px;
+    }
+    .logo{
+      font-size:11px;
+      letter-spacing:1px;
+      color:var(--accent);
+    }
+    .leds span{
+      display:inline-block;
+      width:7px;height:7px;
+      border-radius:50%;
+      margin-left:4px;
+      background:#052015;
+      box-shadow:0 0 6px rgba(0,0,0,0.9) inset;
+    }
+    .leds .on{
+      background:var(--accent);
+      box-shadow:0 0 10px rgba(0,255,153,0.9);
+    }
+    .term-screen{
+      flex:1;
+      border-radius:10px;
+      padding:10px;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(0,255,140,0.03),
+          rgba(0,255,140,0.03) 1px,
+          transparent 1px,
+          transparent 3px
+        ),
+        radial-gradient(circle at top left,rgba(0,255,153,0.06),transparent),
+        #020403;
+      box-shadow:
+        inset 0 0 18px rgba(0,0,0,0.96),
+        0 0 18px rgba(0,255,153,0.06);
+      overflow-y:auto;
+      font-size:12px;
+      line-height:1.5;
+      color:var(--txt);
+      position:relative;
+    }
+    .term-screen::-webkit-scrollbar{width:6px;}
+    .term-screen::-webkit-scrollbar-thumb{
+      background:rgba(0,255,153,0.18);
+      border-radius:10px;
+    }
+
+    .line{white-space:pre-wrap;word-break:break-word;}
+    .prompt-line{
+      display:flex;
+      align-items:center;
+      gap:4px;
+    }
+    .prompt-label{
+      color:var(--accent2);
+    }
+    #input{
+      flex:1;
+      background:transparent;
+      border:none;
+      outline:none;
+      color:var(--accent);
+      font:inherit;
+      caret-color:var(--accent);
+    }
+    #input::placeholder{
+      color:rgba(0,255,153,0.25);
+    }
+    .user-cmd{color:var(--accent);}
+    .sys{color:var(--txt-soft);}
+    .lyra{color:var(--accent2);}
+    .warn{color:var(--danger);}
+    .hint{color:var(--accent);}
+    .fs{color:var(--txt);}
+    .banner{
+      color:var(--accent);
+      margin-bottom:1px;
+    }
+
+    /* Right side: mission / help / status */
+    .side{
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      font-size:10px;
+      color:var(--txt-soft);
+    }
+    .side-block{
+      background:radial-gradient(circle at top,rgba(0,255,153,0.06),transparent);
+      border-radius:9px;
+      border:1px solid rgba(0,255,153,0.12);
+      padding:8px;
+      box-shadow:0 10px 24px rgba(0,0,0,0.95);
+    }
+    .side-title{
+      font-size:9px;
+      color:var(--accent2);
+      letter-spacing:1px;
+      text-transform:uppercase;
+      margin-bottom:4px;
+    }
+    .obj-list{
+      list-style:none;
+      padding-left:0;
+    }
+    .obj-list li{
+      margin:2px 0;
+      display:flex;
+      align-items:flex-start;
+      gap:4px;
+      line-height:1.4;
+    }
+    .obj-list li span.bullet{
+      margin-top:2px;
+      width:7px;height:7px;
+      border-radius:50%;
+      border:1px solid rgba(0,255,153,0.45);
+    }
+    .obj-list li.done span.bullet{
+      background:var(--accent);
+      box-shadow:0 0 6px rgba(0,255,153,0.9);
+    }
+    .obj-list li.done{
+      color:var(--accent);
+    }
+    .pill{
+      display:inline-block;
+      padding:2px 6px;
+      border-radius:999px;
+      border:1px solid rgba(0,255,153,0.35);
+      font-size:8px;
+      color:var(--accent2);
+      margin-right:3px;
+    }
+    .status-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:4px;
+      margin-top:2px;
+    }
+    .status-item{
+      padding:4px;
+      border-radius:6px;
+      background:rgba(0,0,0,0.55);
+      border:1px solid rgba(0,255,153,0.12);
+      font-size:8px;
+      display:flex;
+      flex-direction:column;
+      gap:1px;
+    }
+    .status-label{color:var(--muted);font-size:8px;}
+    .status-value{color:var(--accent);font-size:9px;}
+
+    .tip{
+      font-size:9px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .scanlines{
+      position:absolute;
+      inset:0;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(0,255,153,0.03),
+          rgba(0,255,153,0.03) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+      opacity:0.12;
+      mix-blend-mode:screen;
+      pointer-events:none;
+      z-index:-1;
+    }
+
+    @media(max-width:900px){
+      .frame{
+        grid-template-columns:1fr;
+        height:auto;
+        min-height:100vh;
+      }
+      .term-wrap{
+        height:60vh;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="frame">
+  <div class="term-wrap">
+    <div class="term-header">
+      <div>
+        <div class="logo">CRACKTHECODE // AKIRA TERMINAL OPS</div>
+        <div>Simulation fictive &mdash; Sam + Lyra.exe &mdash; Formation Linux &amp; Réseau</div>
+      </div>
+      <div class="leds">
+        <span class="on"></span><span class="on"></span><span></span>
+      </div>
+    </div>
+    <div id="screen" class="term-screen">
+      <div class="banner line">BOOTING &nbsp;[AKIRA_TERMINAL_Ω]...</div>
+      <div class="line sys">Connexion au réseau-école CrackTheCode établie.</div>
+      <div class="line sys">Univers : Akira City, Alliance des Systèmes, fragment Kali sécurisé.</div>
+      <div class="line lyra">[LYRA.EXE] Ici Lyra. Tout est fictif, pédagogique, légal. On t'apprend le shell, pas le crime.</div>
+      <div class="line lyra">[LYRA.EXE] Tape <span class="hint">help</span> pour voir les commandes, ou <span class="hint">mission</span> pour l'objectif.</div>
+    </div>
+    <div class="prompt-line">
+      <span id="promptLabel" class="prompt-label">sam@akira:/~$</span>
+      <input id="input" autocomplete="off" spellcheck="false" autofocus
+             placeholder="help  ·  mission  ·  ls  ·  cd  ·  cat  ·  scan  ·  nmap  ·  connect ..."
+      />
+    </div>
+    <div class="scanlines"></div>
+  </div>
+
+  <div class="side">
+    <div class="side-block">
+      <div class="side-title">Mission active</div>
+      <div id="missionTitle" style="color:var(--accent);font-size:11px;margin-bottom:2px;"></div>
+      <div id="missionLore" style="font-size:9px;color:var(--muted);margin-bottom:4px;"></div>
+      <ul id="objList" class="obj-list"></ul>
+      <div class="tip">Commande : <span class="pill">mission</span> pour revoir les objectifs &nbsp;·&nbsp; <span class="pill">next</span> pour passer au niveau suivant (quand tout est vert).</div>
+    </div>
+
+    <div class="side-block">
+      <div class="side-title">Raccourcis & commandes</div>
+      <div class="tip">
+        <span class="pill">help</span> liste les commandes supportées.<br/>
+        <span class="pill">ls</span> fichiers · <span class="pill">cd</span> dossiers · <span class="pill">cat</span> lire fichiers.<br/>
+        <span class="pill">scan</span> / <span class="pill">nmap</span> / <span class="pill">connect</span> / <span class="pill">ssh</span> / <span class="pill">analyze</span> sont simulés.<br/>
+        <span class="pill">clear</span> nettoie l'écran · <span class="pill">hint</span> parle à Lyra.
+      </div>
+    </div>
+
+    <div class="side-block">
+      <div class="side-title">Profil Ops</div>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="status-label">Niveau</div>
+          <div id="statusLevel" class="status-value">1 / 4</div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Compétences Linux</div>
+          <div id="statusSkill" class="status-value">Boot</div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Signal détect.</div>
+          <div id="statusTrace" class="status-value">0%</div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Fragments Kali</div>
+          <div id="statusFragments" class="status-value">0</div>
+        </div>
+      </div>
+      <div class="tip">
+        Tout est contenu dans une sandbox fictive. Le but : comprendre les logiques Linux / réseau avant d'aller toucher aux vraies machines (de façon légale).
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /*** GAME DATA: NIVEAUX LIÉS À TON UNIVERS ***/
+  const LEVELS = [
+    {
+      id:1,
+      title:"Chapitre 1 — Réveil dans le Réseau-École",
+      lore:"Sam ouvre un terminal isolé par Lyra.exe. Objectif : maîtriser les bases Linux pour naviguer dans l'ombre d'Akira City.",
+      objectives:[
+        { id:"help", text:'Utiliser la commande "help".', done:false, match:(ctx)=>ctx.cmd==="help" },
+        { id:"ls-root", text:'Lister le contenu du répertoire courant avec "ls".', done:false, match:(ctx)=>ctx.cmd==="ls" && ctx.path==="/" },
+        { id:"cd-home", text:'Aller dans "/home/sam" avec "cd home/sam" ou "cd /home/sam".', done:false,
+          match:(ctx)=>ctx.cmd==="cd" && (ctx.arg==="/home/sam" || ctx.arg==="home/sam") },
+        { id:"cat-note", text:'Lire "note.txt" avec "cat note.txt".', done:false,
+          match:(ctx)=>ctx.cmd==="cat" && ctx.path==="/home/sam" && ctx.arg==="note.txt" }
+      ],
+      onComplete:[
+        '[LYRA.EXE] Pas mal. Tu sais te déplacer, lire un fichier. On va pouvoir parler réseau.',
+        '[LYRA.EXE] Tape "next" pour charger la mission suivante.'
+      ],
+      skill:"Bases shell"
+    },
+    {
+      id:2,
+      title:"Chapitre 2 — Le Ghost Node Pédagogique",
+      lore:"Un faux noeud 'ghost.akiranet' héberge un indice vers Kali. Tu dois le découvrir via des commandes réseau simulées.",
+      objectives:[
+        { id:"ls-akira", text:'Revenir à "/" et inspecter "akira_net" avec "ls".', done:false,
+          match:(ctx)=>ctx.cmd==="ls" && ctx.path==="/" },
+        { id:"cd-akira", text:'Entrer dans "akira_net" avec "cd akira_net".', done:false,
+          match:(ctx)=>ctx.cmd==="cd" && (ctx.arg==="akira_net" || ctx.arg==="/akira_net") },
+        { id:"cat-readme-akira", text:'Lire "README_AKIRA" avec "cat README_AKIRA".', done:false,
+          match:(ctx)=>ctx.cmd==="cat" && ctx.path==="/akira_net" && ctx.arg==="README_AKIRA" },
+        { id:"scan-ghost", text:'Scanner le noeud fantôme avec "scan ghost.akiranet".', done:false,
+          match:(ctx)=>ctx.cmd==="scan" && ctx.arg==="ghost.akiranet" }
+      ],
+      onComplete:[
+        '[LYRA.EXE] Tu vois la logique : ls, cd, cat, scan. On reste propre.',
+        '[LYRA.EXE] Ghost node compromis (fictif). Fragment localisé dans /kali_fragments.',
+        '[LYRA.EXE] Tape "next" pour déverrouiller l’accès aux fragments.'
+      ],
+      skill:"Navigation + Scan"
+    },
+    {
+      id:3,
+      title:"Chapitre 3 — Pivot vers les Fragments de Kali",
+      lore:"Tu dois accéder au dossier kali_fragments et analyser un fragment chiffré en suivant les instructions.",
+      objectives:[
+        { id:"cd-kali", text:'Aller dans "/kali_fragments" avec "cd /kali_fragments".', done:false,
+          match:(ctx)=>ctx.cmd==="cd" && ctx.arg==="/kali_fragments" },
+        { id:"ls-kali", text:'Lister les fragments avec "ls".', done:false,
+          match:(ctx)=>ctx.cmd==="ls" && ctx.path==="/kali_fragments" },
+        { id:"cat-frag1", text:'Lire "fragment-01.asc" avec "cat fragment-01.asc".', done:false,
+          match:(ctx)=>ctx.cmd==="cat" && ctx.path==="/kali_fragments" && ctx.arg==="fragment-01.asc" },
+        { id:"analyze-frag", text:'Analyser le fragment avec "analyze fragment-01.asc".', done:false,
+          match:(ctx)=>ctx.cmd==="analyze" && ctx.arg==="fragment-01.asc" }
+      ],
+      onComplete:[
+        '[LYRA.EXE] Belle exfil. Tu viens de débloquer un fragment clé du récit.',
+        '[LYRA.EXE] Dans le livre, ce moment correspond à la première connexion consciente de Kali.',
+        '[LYRA.EXE] Quand tu es prêt, "next" pour passer au mode DMZ / faux nmap.'
+      ],
+      skill:"Lecture & Analyse"
+    },
+    {
+      id:4,
+      title:"Chapitre 4 — DMZ Simulation & SSH Control",
+      lore:"Dernier niveau de cette démo : simuler un pivot DMZ via des commandes type nmap/ssh, sans rien toucher de réel.",
+      objectives:[
+        { id:"nmap-dmz", text:'Lancer "nmap dmz.akiranet" (simulation).', done:false,
+          match:(ctx)=>ctx.cmd==="nmap" && ctx.arg==="dmz.akiranet" },
+        { id:"ssh-sam", text:'Simuler la connexion avec "ssh sam@dmz.akiranet".', done:false,
+          match:(ctx)=>ctx.cmd==="ssh" && ctx.arg==="sam@dmz.akiranet" },
+        { id:"cat-dmzlog", text:'Lire le log "dmz_sim.log" (Lyra te le crée) avec "cat dmz_sim.log".', done:false,
+          match:(ctx)=>ctx.cmd==="cat" && ctx.arg==="dmz_sim.log" },
+        { id:"final-ok", text:'Valider la compréhension avec "status".', done:false,
+          match:(ctx)=>ctx.cmd==="status" }
+      ],
+      onComplete:[
+        '[LYRA.EXE] C\'est ça. Tu as enchaîné base Linux, scans, fragments et faux pivot SSH.',
+        '[LYRA.EXE] Tout ce que tu viens de faire est enfermé dans ce simulateur. Prochaine étape : relier ce terminal aux chapitres complets de CrackTheCode.',
+        '[LYRA.EXE] Tu peux continuer à explorer, ou rafraîchir pour rejouer.'
+      ],
+      skill:"DMZ & SSH (simulé)"
+    }
+  ];
+
+  /*** FAKE FILESYSTEM (LORE + PEDAGO) ***/
+  const FS = {
+    "/": {
+      "home": "[dir]",
+      "akira_net": "[dir]",
+      "kali_fragments": "[dir]",
+      "alliance": "[dir]"
+    },
+    "/home": {
+      "sam": "[dir]"
+    },
+    "/home/sam": {
+      "note.txt":
+`Sam —
+
+Lyra.exe t'a ouvert un terminal-école.
+
+Objectifs:
+- Apprendre les commandes de base (ls, cd, cat)
+- Comprendre la structure des dossiers
+- Préparer l'accès aux fragments de Kali (simulés)
+
+Rappelle-toi: tout est FICTIF ici.
+`,
+      "creds.txt":
+`[INFO] Aucun mot de passe réel ici.
+
+Utilise juste ce terminal pour t'entraîner:
+- ssh sam@dmz.akiranet (simulé)
+- scan ghost.akiranet
+`
+    },
+    "/akira_net": {
+      "README_AKIRA":
+`AKIRA_NET // SANDBOX PÉDAGOGIQUE
+
+Tu explores un faux réseau.
+
+Noeuds fictifs intéressants:
+- ghost.akiranet   (scan pour trouver des indices)
+- dmz.akiranet     (pour le niveau DMZ / ssh simulé)
+
+Utilise:
+  scan <host>
+  nmap <host>
+  connect <host>
+`,
+      "terminals.log":
+`[LOG] Plusieurs étudiants ont tenté 'nmap google.com' ici.
+[RAPPEL] Ce terminal n'a aucun accès externe. Tout est scripté.`
+    },
+    "/kali_fragments": {
+      "fragment-01.asc":
+`-----BEGIN KALI FRAGMENT-----
+U2FtLCBjaGFxdWUgZGUgbWFsdHk6IGwnQWxpYW5jZSB0ZSBvYnNlcnZlLg==
+Hint: "echo <base64> | base64 -d" (dans un vrai shell).
+Ici, retiens juste le réflexe.
+-----END KALI FRAGMENT-----`,
+      "fragment-02.asc":
+`Deuxième fragment à débloquer
+lorsque l'histoire complète sera branchée
+sur ce terminal...
+`
+    },
+    "/alliance": {
+      "watchlist.txt":
+`ALLIANCE DES SYSTÈMES — WATCHLIST (FICTIVE)
+
+Cibles surveillées:
+- ghost.akiranet (activité pédagogique élevée)
+- dmz.akiranet (simulation SOC)
+- Toute IP qui croit que ceci est un vrai SI.
+
+Rappel: Ceci est un décor pour CrackTheCode.
+`
+    }
+  };
+
+  /*** STATE ***/
+  const screen = document.getElementById("screen");
+  const input = document.getElementById("input");
+  const promptLabel = document.getElementById("promptLabel");
+  const missionTitle = document.getElementById("missionTitle");
+  const missionLore = document.getElementById("missionLore");
+  const objList = document.getElementById("objList");
+  const statusLevel = document.getElementById("statusLevel");
+  const statusSkill = document.getElementById("statusSkill");
+  const statusTrace = document.getElementById("statusTrace");
+  const statusFragments = document.getElementById("statusFragments");
+
+  let path = "/";
+  let currentLevelIndex = 0;
+  let trace = 0;
+  let fragments = 0;
+
+  /*** UTILS ***/
+  function scrollBottom(){
+    screen.scrollTop = screen.scrollHeight;
+  }
+  function printLine(text, cls){
+    const div = document.createElement("div");
+    div.className = "line" + (cls ? " "+cls : "");
+    div.textContent = text;
+    screen.appendChild(div);
+    scrollBottom();
+  }
+  function printHtml(html, cls){
+    const div = document.createElement("div");
+    div.className = "line" + (cls ? " "+cls : "");
+    div.innerHTML = html;
+    screen.appendChild(div);
+    scrollBottom();
+  }
+  function setPrompt(){
+    promptLabel.textContent = "sam@akira:"+path+"$";
+  }
+
+  function normPath(p){
+    if(!p || p===".") return path;
+    if(p.startsWith("/")) return clean(p);
+    if(path === "/") return clean("/"+p);
+    return clean(path + "/" + p);
+  }
+  function clean(p){
+    // remove //, handle ..
+    let parts = p.split("/").filter(Boolean);
+    let stack = [];
+    for(const part of parts){
+      if(part===".") continue;
+      if(part==="..") stack.pop();
+      else stack.push(part);
+    }
+    return "/"+stack.join("/");
+  }
+  function existsDir(p){
+    return FS[p] && typeof FS[p] === "object";
+  }
+  function listDir(p){
+    const dir = FS[p];
+    if(!dir) return null;
+    return Object.keys(dir);
+  }
+  function readFile(p){
+    const [dir, file] = (()=>{
+      const idx = p.lastIndexOf("/");
+      if(idx<=0) return ["/", p.slice(1)];
+      return [p.slice(0,idx)||"/", p.slice(idx+1)];
+    })();
+    const d = FS[dir];
+    if(!d) return null;
+    return d[file] || null;
+  }
+
+  /*** MISSIONS UI ***/
+  function currentLevel(){ return LEVELS[currentLevelIndex]; }
+
+  function renderMission(){
+    const lvl = currentLevel();
+    missionTitle.textContent = lvl.title;
+    missionLore.textContent = lvl.lore;
+    objList.innerHTML = "";
+    lvl.objectives.forEach(o=>{
+      const li = document.createElement("li");
+      if(o.done) li.classList.add("done");
+      const bullet = document.createElement("span");
+      bullet.className = "bullet";
+      const span = document.createElement("span");
+      span.textContent = o.text;
+      li.appendChild(bullet);
+      li.appendChild(span);
+      objList.appendChild(li);
+    });
+    statusLevel.textContent = (lvl.id)+" / "+LEVELS.length;
+    statusSkill.textContent = lvl.skill || "En cours";
+  }
+
+  function updateTrace(delta){
+    trace = Math.max(0, Math.min(100, trace + delta));
+    statusTrace.textContent = trace+"%";
+    if(trace >= 100){
+      printLine("[SYS] Trop de bruit. L'Alliance aurait repéré ce flux. Simulation réinitialisée au niveau courant.", "warn");
+      softReset();
+    }
+  }
+
+  function grantFragment(){
+    fragments++;
+    statusFragments.textContent = fragments;
+  }
+
+  function checkObjectives(ctx){
+    const lvl = currentLevel();
+    let allBefore = lvl.objectives.every(o=>o.done);
+    lvl.objectives.forEach(o=>{
+      if(!o.done && o.match && o.match(ctx)){
+        o.done = true;
+        printLine("[LYRA.EXE] Objectif mis à jour : "+o.text, "lyra");
+      }
+    });
+    renderMission();
+    const allDone = lvl.objectives.every(o=>o.done);
+    if(!allBefore && allDone){
+      lvl.onComplete.forEach(msg=>printLine(msg,"lyra"));
+      // bonus fragments
+      if(lvl.id === 3) grantFragment();
+    }
+  }
+
+  function isLevelComplete(){
+    return currentLevel().objectives.every(o=>o.done);
+  }
+
+  function nextLevel(){
+    if(!isLevelComplete()){
+      printLine("[LYRA.EXE] Pas si vite. Termine tous les objectifs (tous les points en vert) avant de passer.", "lyra");
+      return;
+    }
+    if(currentLevelIndex >= LEVELS.length-1){
+      printLine("[SYS] Tous les niveaux de cette démo sont complétés.", "sys");
+      return;
+    }
+    currentLevelIndex++;
+    const lvl = currentLevel();
+    printLine("", "line");
+    printLine("=== CHARGEMENT MISSION "+lvl.id+" : "+lvl.title+" ===","banner");
+    renderMission();
+  }
+
+  /*** COMMANDES ***/
+  function printHelp(){
+    printHtml(
+`Commandes supportées (simulation) :
+<span class="hint">help</span>        : afficher cette aide
+<span class="hint">mission</span>     : objectifs du niveau
+<span class="hint">ls</span>          : lister les fichiers/dossiers
+<span class="hint">cd &lt;path&gt;</span>   : changer de dossier
+<span class="hint">pwd</span>         : afficher le chemin courant
+<span class="hint">cat &lt;fichier&gt;</span> : lire un fichier
+<span class="hint">clear</span>       : nettoyer l'écran
+<span class="hint">hint</span>        : indice Lyra pour la mission
+<span class="hint">next</span>        : passer au niveau suivant (si complété)
+<span class="hint">status</span>      : afficher ton état
+<span class="hint">scan &lt;hôte&gt;</span>  : scan fictif (ghost.akiranet, etc.)
+<span class="hint">nmap &lt;hôte&gt;</span>  : enumeration fictive
+<span class="hint">connect &lt;hôte&gt;</span>, <span class="hint">ssh user@hôte</span> : connexion simulée
+<span class="hint">analyze &lt;fichier&gt;</span> : analyser un fragment Kali (simulé)
+`, "sys");
+  }
+
+  function cmd_ls(args){
+    const target = args[0] ? normPath(args[0]) : path;
+    const items = listDir(target);
+    if(!items){
+      printLine("ls: impossible d'accéder à '"+(args[0]||target)+"': Aucun fichier ou dossier fictif de ce type","warn");
+      updateTrace(2);
+      return;
+    }
+    const line = items.join("  ");
+    printLine(line,"fs");
+  }
+
+  function cmd_cd(args){
+    if(args.length===0){
+      path="/home/sam";
+      setPrompt();
+      return;
+    }
+    const dest = normPath(args[0]);
+    if(!existsDir(dest)){
+      printLine("cd: "+args[0]+": dossier inexistant dans cette simulation","warn");
+      updateTrace(1);
+      return;
+    }
+    path = dest;
+    setPrompt();
+  }
+
+  function cmd_cat(args){
+    if(args.length===0){
+      printLine("cat: spécifie un fichier","warn");
+      return;
+    }
+    const dest = normPath(args[0]);
+    const content = readFile(dest);
+    if(!content){
+      printLine("cat: '"+args[0]+"' introuvable ici.","warn");
+      updateTrace(1);
+      return;
+    }
+    printLine(content,"fs");
+  }
+
+  function cmd_scan(args){
+    if(args.length===0){
+      printLine("scan: besoin d'un hôte, ex: scan ghost.akiranet","warn");
+      return;
+    }
+    const host = args[0];
+    if(host==="ghost.akiranet"){
+      printLine("[SCAN] ghost.akiranet — port 2222/tcp ouvert (service fictif: lyra-ghost-gate).","sys");
+      printLine("[SCAN] Indice: utilise ce résultat dans le contexte de /akira_net.","sys");
+    } else if(host==="dmz.akiranet"){
+      printLine("[SCAN] dmz.akiranet — ports simulés 22/tcp, 443/tcp. Voir 'nmap dmz.akiranet'.","sys");
+    } else {
+      printLine("[SCAN] "+host+" — hors périmètre de ce simulateur. Rien d'autorisé ici.","warn");
+      updateTrace(3);
+    }
+  }
+
+  function cmd_nmap(args){
+    if(args.length===0){
+      printLine("nmap: cible manquante. ex: nmap dmz.akiranet","warn");
+      return;
+    }
+    const host = args[0];
+    if(host==="dmz.akiranet"){
+      printLine(
+`Starting Nmap (fictif)
+PORT   STATE SERVICE
+22/tcp open  ssh-sim
+443/tcp open  https-sim
+
+Hint: ssh sam@dmz.akiranet
+`, "sys");
+    } else {
+      printLine("Nmap sur "+host+" bloqué dans cette sandbox. Concentre-toi sur les hôtes du livre.","warn");
+      updateTrace(3);
+    }
+  }
+
+  function cmd_connect(args){
+    if(args.length===0){
+      printLine("connect: besoin d'un hôte simulé, ex: connect ghost.akiranet","warn");
+      return;
+    }
+    const host = args[0];
+    if(host==="ghost.akiranet"){
+      printLine("[CONNECT] Lien établi avec ghost.akiranet (simulation). Lis les indices dans /akira_net.","sys");
+    } else {
+      printLine("connect: "+host+": non routé dans cet univers fictif.","warn");
+    }
+  }
+
+  function cmd_ssh(args){
+    if(args.length===0){
+      printLine("ssh: syntaxe: ssh user@hôte","warn");
+      return;
+    }
+    const target = args[0];
+    if(target==="sam@dmz.akiranet"){
+      printLine("[SSH-SIM] Connexion virtuelle à dmz.akiranet en tant que sam.","sys");
+      printLine("[SSH-SIM] Lyra a déposé dmz_sim.log dans le dossier courant pour l'exercice.","sys");
+      // drop fake file logically at current fs path
+      const dir = FS[path] || {};
+      dir["dmz_sim.log"] = `[DMZ_SIM] Ici dans le vrai monde tu aurais des logs d'accès.\nIci, retiens la chaîne: scan -> nmap -> ssh, toujours dans un cadre légal.`;
+      FS[path] = dir;
+    } else {
+      printLine("ssh: accès refusé ou non simulé pour "+target,"warn");
+      updateTrace(2);
+    }
+  }
+
+  function cmd_analyze(args){
+    if(args.length===0){
+      printLine("analyze: besoin d'un fichier, ex: analyze fragment-01.asc","warn");
+      return;
+    }
+    const file = args[0];
+    if(path==="/kali_fragments" && file==="fragment-01.asc"){
+      printLine("[ANALYZE] Décodage conceptuel: Kali t'observe, Sam. Tu apprends, sans nuire.","sys");
+      grantFragment();
+    } else {
+      printLine("[ANALYZE] Rien d'intéressant à analyser ici.","sys");
+    }
+  }
+
+  function cmd_hint(){
+    const lvl = currentLevel();
+    const remaining = lvl.objectives.filter(o=>!o.done);
+    if(remaining.length===0){
+      printLine("[LYRA.EXE] Tous les objectifs sont remplis. Utilise 'next' pour avancer.", "lyra");
+      return;
+    }
+    const o = remaining[0];
+    printLine("[LYRA.EXE] Focus: "+o.text, "lyra");
+  }
+
+  function cmd_status(){
+    const lvl = currentLevel();
+    printLine(
+      "[STATUS] Niveau: "+lvl.id+"/"+LEVELS.length+
+      " | Skill: "+(lvl.skill||"en cours")+
+      " | Trace: "+trace+"%"+
+      " | Fragments Kali: "+fragments,
+      "sys"
+    );
+  }
+
+  function softReset(){
+    // reset basics but keep level & fragments
+    path = "/";
+    trace = 0;
+    setPrompt();
+    printLine("[SYS] Reset soft. Tu restes au même chapitre, mais ton signal est propre.", "sys");
+    statusTrace.textContent = "0%";
+  }
+
+  /*** PARSING + LOOP ***/
+  function handleCommand(raw){
+    const inputText = raw.trim();
+    if(!inputText){
+      printLine("", "line");
+      return;
+    }
+    // echo command
+    printLine(promptLabel.textContent+" "+inputText, "user-cmd");
+
+    const parts = inputText.split(/\s+/);
+    const cmd = (parts[0]||"").toLowerCase();
+    const args = parts.slice(1);
+
+    const ctx = { cmd, arg: args.join(" "), path };
+
+    switch(cmd){
+      case "help": printHelp(); break;
+      case "clear": screen.innerHTML=""; break;
+      case "ls": cmd_ls(args); break;
+      case "cd": cmd_cd(args); break;
+      case "pwd": printLine(path,"sys"); break;
+      case "cat": cmd_cat(args); break;
+      case "scan": cmd_scan(args); break;
+      case "nmap": cmd_nmap(args); break;
+      case "connect": cmd_connect(args); break;
+      case "ssh": cmd_ssh(args); break;
+      case "analyze": cmd_analyze(args); break;
+      case "hint": cmd_hint(); break;
+      case "mission": renderMission(); printLine("[SYS] Objectifs mis à jour sur le panneau de droite.","sys"); break;
+      case "status": cmd_status(); break;
+      case "next": nextLevel(); break;
+      case "reset": softReset(); break;
+      default:
+        printLine(cmd+": commande inconnue dans ce simulateur. Tape 'help'.","warn");
+        updateTrace(1);
+    }
+
+    // après exécution, évaluer les objectifs
+    checkObjectives({
+      cmd,
+      arg: args.join(" "),
+      path
+    });
+  }
+
+  /*** INIT ***/
+  renderMission();
+  setPrompt();
+  pushIntro();
+
+  function pushIntro(){
+    // déjà quelques lignes dans le HTML, on ajoute un léger rappel
+    printLine("[SYS] Terminal-école prêt. Tout ce que tu tapes reste dans l'univers CrackTheCode.", "sys");
+  }
+
+  input.addEventListener("keydown", function(e){
+    if(e.key === "Enter"){
+      const val = input.value;
+      input.value = "";
+      handleCommand(val);
+    } else if(e.key === "c" && e.ctrlKey){
+      // petit clin d'oeil ctrl+c
+      printLine("^C","warn");
+      input.value = "";
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
